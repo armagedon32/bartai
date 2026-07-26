@@ -636,7 +636,7 @@ async function loadConversations() {
 
 function renderSidebar() {
   const list = document.getElementById('convList');
-  const filtered = state.conversations.filter(c => c.name !== 'default');
+  const filtered = state.conversations.filter(c => c.name !== 'default' && c.messages > 0);
   if (!filtered.length) { list.innerHTML = '<div style="padding:12px;color:var(--text2);font-size:13px;text-align:center">No conversations</div>'; return; }
   list.innerHTML = filtered.map(c => {
     const name = c.name || 'untitled';
