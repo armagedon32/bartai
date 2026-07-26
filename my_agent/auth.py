@@ -3,94 +3,14 @@ import hashlib
 import secrets
 import json
 import time
-import os
-import smtplib
 from pathlib import Path
 from datetime import datetime, timedelta
-from email.mime.text import MIMEText
 
 
 DB_PATH = Path(__file__).parent.parent / "data" / "bart.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 TOKEN_EXPIRY_DAYS = 30
-
-SMTP_HOST = os.getenv("SMTP_HOST", "")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_FROM = os.getenv("SMTP_FROM", "")
-
-_verification_codes: dict[str, dict] = {}
-
-
-def _send_email(to: str, subject: str, body: str) -> bool:
-    if not SMTP_HOST or not SMTP_USER:
-        return False
-    try:
-        msg = MIMEText(body, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = SMTP_FROM or SMTP_USER
-        msg["To"] = to
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
-            s.starttls()
-            s.login(SMTP_USER, SMTP_PASSWORD)
-            s.send_message(msg)
-        return True
-    except Exception:
-        return False
-
-
-def send_verification_code(email: str, password: str, name: str = "") -> dict:
-    email = email.lower().strip()
-    if not email or "@" not in email:
-        return {"success": False, "error": "Invalid email address."}
-    if len(password) < 6:
-        return {"success": False, "error": "Password must be at least 6 characters."}
-
-    conn = _get_db()
-    existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
-    if existing:
-        return {"success": False, "error": "Email already registered."}
-
-    code = f"{secrets.randbelow(900000) + 100000}"
-    _verification_codes[email] = {
-        "code": code,
-        "password": password,
-        "name": name.strip(),
-        "expires": time.time() + 600,
-    }
-    sent = _send_email(email, "Your BArt AI Verification Code", f"Your verification code is: {code}\n\nThis code expires in 10 minutes.")
-    if not sent:
-        return {"success": False, "error": "Failed to send verification email. Check SMTP settings."}
-    return {"success": True, "message": "Verification code sent to your email."}
-
-
-def verify_email(email: str, code: str) -> dict:
-    email = email.lower().strip()
-    data = _verification_codes.pop(email, None)
-    if not data:
-        return {"success": False, "error": "No verification code found. Please register again."}
-    if time.time() > data["expires"]:
-        return {"success": False, "error": "Verification code expired. Please register again."}
-    if data["code"] != code.strip():
-        _verification_codes[email] = data
-        return {"success": False, "error": "Invalid verification code."}
-
-    pw = _hash_password(data["password"])
-    conn = _get_db()
-    try:
-        conn.execute(
-            "INSERT INTO users (email, password, name) VALUES (?, ?, ?)",
-            (email, pw, data["name"]),
-        )
-        conn.commit()
-        return {"success": True, "message": "Email verified and account created!"}
-    except sqlite3.IntegrityError:
-        return {"success": False, "error": "Email already registered."}
-    finally:
-        conn.close()
 
 
 def _get_db():
@@ -133,6 +53,14 @@ def init_db():
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS activation_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            used INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            used_at TEXT
+        );
     """)
     conn.commit()
     conn.close()
@@ -152,25 +80,37 @@ def seed_admin():
     conn.close()
 
 
-def register_user(email: str, password: str, name: str = "") -> dict:
+def register_with_code(email: str, password: str, code: str, name: str = "") -> dict:
+    email = email.lower().strip()
     if not email or "@" not in email:
         return {"success": False, "error": "Invalid email address."}
     if len(password) < 6:
         return {"success": False, "error": "Password must be at least 6 characters."}
+    if not code:
+        return {"success": False, "error": "Activation code is required."}
 
     conn = _get_db()
-    try:
-        pw = _hash_password(password)
-        conn.execute(
-            "INSERT INTO users (email, password, name) VALUES (?, ?, ?)",
-            (email.lower().strip(), pw, name.strip()),
-        )
-        conn.commit()
-        return {"success": True}
-    except sqlite3.IntegrityError:
-        return {"success": False, "error": "Email already registered."}
-    finally:
+    existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if existing:
         conn.close()
+        return {"success": False, "error": "Email already registered."}
+
+    row = conn.execute(
+        "SELECT id, used FROM activation_codes WHERE code = ?", (code.strip(),)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"success": False, "error": "Invalid activation code."}
+    if row["used"]:
+        conn.close()
+        return {"success": False, "error": "Activation code already used."}
+
+    pw = _hash_password(password)
+    conn.execute("INSERT INTO users (email, password, name) VALUES (?, ?, ?)", (email, pw, name.strip()))
+    conn.execute("UPDATE activation_codes SET used = 1, used_at = datetime('now') WHERE id = ?", (row["id"],))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Account created successfully!"}
 
 
 def login_user(email: str, password: str) -> dict:
@@ -256,6 +196,27 @@ def get_user_conversation_dir(user_id: int) -> Path:
     return base
 
 
+def generate_activation_code(note: str = "") -> dict:
+    code = secrets.token_hex(8).upper()
+    conn = _get_db()
+    conn.execute(
+        "INSERT INTO activation_codes (code, note) VALUES (?, ?)",
+        (code, note.strip()),
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True, "code": code}
+
+
+def list_activation_codes() -> list[dict]:
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT id, code, note, used, created_at, used_at FROM activation_codes ORDER BY id DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def list_users() -> list[dict]:
     conn = _get_db()
     rows = conn.execute(
@@ -263,3 +224,16 @@ def list_users() -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def toggle_ban_user(user_id: int) -> dict:
+    conn = _get_db()
+    user = conn.execute("SELECT id, banned FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        conn.close()
+        return {"success": False, "error": "User not found."}
+    new_val = 0 if user["banned"] else 1
+    conn.execute("UPDATE users SET banned = ? WHERE id = ?", (new_val, user_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "banned": bool(new_val)}

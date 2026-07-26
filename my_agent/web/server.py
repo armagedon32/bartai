@@ -66,11 +66,8 @@ class ModelRequest(BaseModel):
 class RegisterRequest(BaseModel):
     email: str
     password: str
-    name: str = ""
-
-class VerifyRequest(BaseModel):
-    email: str
     code: str
+    name: str = ""
 
 class LoginRequest(BaseModel):
     email: str
@@ -93,15 +90,7 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 @app.post("/api/auth/register")
 async def register(req: RegisterRequest):
-    result = auth.send_verification_code(req.email, req.password, req.name)
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return {"message": result["message"]}
-
-
-@app.post("/api/auth/verify")
-async def verify(req: VerifyRequest):
-    result = auth.verify_email(req.email, req.code)
+    result = auth.register_with_code(req.email, req.password, req.code, req.name)
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
     return {"message": result["message"]}
@@ -279,6 +268,40 @@ async def set_model(req: ModelRequest, user: dict = Depends(get_current_user)):
     config.model = req.model
     agent.llm.model = req.model
     return {"model": config.model}
+
+
+# --- Admin Endpoints ---
+
+@app.get("/api/admin/users")
+async def admin_users(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403)
+    return {"users": auth.list_users()}
+
+
+@app.post("/api/admin/generate-code")
+async def admin_generate_code(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403)
+    result = auth.generate_activation_code()
+    return result
+
+
+@app.get("/api/admin/codes")
+async def admin_codes(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403)
+    return {"codes": auth.list_activation_codes()}
+
+
+@app.post("/api/admin/users/{user_id}/ban")
+async def admin_toggle_ban(user_id: int, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403)
+    result = auth.toggle_ban_user(user_id)
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
 
 
 @app.on_event("startup")
