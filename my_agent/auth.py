@@ -11,6 +11,7 @@ DB_PATH = Path(__file__).parent.parent / "data" / "bart.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 TOKEN_EXPIRY_DAYS = 30
+ACCOUNT_EXPIRY_DAYS = 30
 
 
 def _get_db():
@@ -43,6 +44,7 @@ def init_db():
             name TEXT NOT NULL DEFAULT '',
             role TEXT NOT NULL DEFAULT 'user',
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            activated_at TEXT,
             banned INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS tokens (
@@ -62,6 +64,11 @@ def init_db():
             used_at TEXT
         );
     """)
+    # migration: add activated_at column if missing
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN activated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     conn.close()
 
@@ -106,17 +113,27 @@ def register_with_code(email: str, password: str, code: str, name: str = "") -> 
         return {"success": False, "error": "Activation code already used."}
 
     pw = _hash_password(password)
-    conn.execute("INSERT INTO users (email, password, name) VALUES (?, ?, ?)", (email, pw, name.strip()))
+    conn.execute("INSERT INTO users (email, password, name, activated_at) VALUES (?, ?, ?, datetime('now'))", (email, pw, name.strip()))
     conn.execute("UPDATE activation_codes SET used = 1, used_at = datetime('now') WHERE id = ?", (row["id"],))
     conn.commit()
     conn.close()
     return {"success": True, "message": "Account created successfully!"}
 
 
+def _is_account_expired(activated_at: str | None) -> bool:
+    if not activated_at:
+        return True
+    try:
+        act = datetime.fromisoformat(activated_at)
+        return datetime.utcnow() - act > timedelta(days=ACCOUNT_EXPIRY_DAYS)
+    except (ValueError, TypeError):
+        return True
+
+
 def login_user(email: str, password: str) -> dict:
     conn = _get_db()
     user = conn.execute(
-        "SELECT id, email, password, name, role, banned FROM users WHERE email = ?",
+        "SELECT id, email, password, name, role, banned, activated_at FROM users WHERE email = ?",
         (email.lower().strip(),),
     ).fetchone()
     conn.close()
@@ -127,6 +144,8 @@ def login_user(email: str, password: str) -> dict:
         return {"success": False, "error": "Account is disabled."}
     if not _verify_password(password, user["password"]):
         return {"success": False, "error": "Invalid email or password."}
+    if _is_account_expired(user["activated_at"]):
+        return {"success": False, "error": f"Account expired. Contact admin to reactivate (valid for {ACCOUNT_EXPIRY_DAYS} days)."}
 
     token = secrets.token_hex(32)
     expires = (datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
@@ -156,7 +175,7 @@ def validate_token(token: str) -> dict | None:
         return None
     conn = _get_db()
     row = conn.execute(
-        """SELECT u.id, u.email, u.name, u.role, t.expires_at
+        """SELECT u.id, u.email, u.name, u.role, u.activated_at, t.expires_at
            FROM tokens t JOIN users u ON t.user_id = u.id
            WHERE t.token = ? AND u.banned = 0""",
         (token,),
@@ -164,6 +183,13 @@ def validate_token(token: str) -> dict | None:
     conn.close()
 
     if not row:
+        return None
+
+    if _is_account_expired(row["activated_at"]):
+        conn = _get_db()
+        conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
         return None
 
     expires = datetime.fromisoformat(row["expires_at"])
@@ -220,10 +246,15 @@ def list_activation_codes() -> list[dict]:
 def list_users() -> list[dict]:
     conn = _get_db()
     rows = conn.execute(
-        "SELECT id, email, name, role, created_at, banned FROM users ORDER BY id"
+        "SELECT id, email, name, role, created_at, activated_at, banned FROM users ORDER BY id"
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["expired"] = _is_account_expired(r["activated_at"])
+        result.append(d)
+    return result
 
 
 def toggle_ban_user(user_id: int) -> dict:
@@ -257,3 +288,15 @@ def delete_user(user_id: int) -> dict:
     if user_dir.exists():
         shutil.rmtree(str(user_dir))
     return {"success": True, "message": "User deleted."}
+
+
+def reactivate_user(user_id: int) -> dict:
+    conn = _get_db()
+    user = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        conn.close()
+        return {"success": False, "error": "User not found."}
+    conn.execute("UPDATE users SET activated_at = datetime('now') WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": f"Account reactivated for another {ACCOUNT_EXPIRY_DAYS} days."}

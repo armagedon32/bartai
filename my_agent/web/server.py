@@ -314,6 +314,16 @@ async def admin_delete_user(user_id: int, user: dict = Depends(get_current_user)
     return result
 
 
+@app.post("/api/admin/users/{user_id}/reactivate")
+async def admin_reactivate_user(user_id: int, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403)
+    result = auth.reactivate_user(user_id)
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
 @app.on_event("startup")
 async def startup():
     auth.init_db()

@@ -247,6 +247,9 @@
       <div class="auth-card" id="loginCard">
         <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> BArt AI</h1>
         <p class="subtitle">Sign in to your account</p>
+        <div style="background:rgba(245,158,11,.12);color:#d97706;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:18px;line-height:1.5">
+          &#9888; Accounts deactivate after 30 days. If yours expired, contact admin for a new code.
+        </div>
         <div class="auth-error" id="loginError"></div>
         <div class="form-group">
           <label>Email</label>
@@ -262,6 +265,9 @@
       <div class="auth-card" id="registerCard" style="display:none;margin-top:32px">
         <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> BArt AI</h1>
         <p class="subtitle">Create a new account</p>
+        <div style="background:rgba(245,158,11,.12);color:#d97706;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:18px;line-height:1.5">
+          &#9888; Accounts automatically deactivate after 30 days. Contact admin for a new activation code to reactivate.
+        </div>
         <div class="auth-error" id="registerError"></div>
         <div class="auth-success" id="registerSuccess"></div>
         <div class="form-group">
@@ -1120,12 +1126,18 @@ function renderUsers(users) {
   if (!users.length) { el.innerHTML = '<div style="color:var(--text2)">No users</div>'; return; }
   el.innerHTML = users.map(u => {
     const deactivated = u.banned ? ' (deactivated)' : '';
+    const expired = u.expired ? ' (expired)' : '';
     const activeLabel = u.banned ? 'Activate' : 'Deactivate';
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-      <span><strong>${escHtml(u.email)}</strong> ${u.role ? '<span style="color:var(--accent)">(' + u.role + ')</span>' : ''}${deactivated}</span>
+      <span>
+        <strong>${escHtml(u.email)}</strong>
+        ${u.role ? '<span style="color:var(--accent)">(' + u.role + ')</span>' : ''}
+        <span style="color:${u.expired ? 'var(--danger)' : 'var(--text2)'}">${deactivated}${expired}</span>
+      </span>
       <div style="display:flex;gap:4px">
         ${u.role !== 'admin' ? `
-          <button class="btn-close" style="padding:2px 10px;font-size:12px" onclick="toggleBan(${u.id})">${activeLabel}</button>
+          ${u.expired ? `<button style="padding:2px 10px;font-size:12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer" onclick="reactivateUser(${u.id})">Reactivate</button>` : ''}
+          <button class="btn-close" style="padding:2px 10px;font-size:12px;${u.banned ? 'background:var(--accent);color:#fff' : ''}" onclick="toggleBan(${u.id})">${activeLabel}</button>
           <button class="btn-danger" style="padding:2px 10px;font-size:12px;background:var(--danger);color:#fff;border:none;border-radius:6px;cursor:pointer" onclick="deleteUser(${u.id}, '${escHtml(u.email)}')">Delete</button>
         ` : ''}
       </div>
@@ -1173,6 +1185,14 @@ async function deleteUser(userId, email) {
     showToast(data.message || 'User deleted');
     loadAdminData();
   } catch (e) { showToast('Failed to delete user', 'error'); }
+}
+
+async function reactivateUser(userId) {
+  try {
+    const data = await api(`/api/admin/users/${userId}/reactivate`, { method: 'POST' });
+    showToast(data.message || 'Account reactivated');
+    loadAdminData();
+  } catch (e) { showToast('Failed to reactivate', 'error'); }
 }
 
 // Init
