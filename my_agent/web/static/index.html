@@ -630,7 +630,7 @@ async function loadConversations() {
   state.current = data.current;
   renderSidebar();
   const hasReal = data.conversations.some(c => c.name !== 'default' && c.messages > 0);
-  if (hasReal) { await loadMessages(); }
+  if (hasReal) { showChat(true); await loadMessages(); }
 }
 
 function renderSidebar() {
@@ -869,7 +869,7 @@ async function sendMessage() {
   if (!text && !images.length && !files.length || state.streaming) return;
 
   if (state.current === 'default') { await ensureConversation(); }
-  if (!document.getElementById('chatArea').style.display) { showChat(true); }
+  if (document.getElementById('welcomeScreen').style.display !== 'none') { showChat(true); }
 
   input.value = '';
   input.style.height = 'auto';
