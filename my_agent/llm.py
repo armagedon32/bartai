@@ -29,16 +29,16 @@ class LLMClient:
     def _model_for_provider(self):
         if self.provider == "groq":
             model_map = {
-                "openai/gpt-4o-mini": "llama-3.3-70b-versatile",
+                "openai/gpt-4o-mini": "llama-3.1-8b-instant",
                 "openai/gpt-4o": "llama-3.3-70b-versatile",
                 "openai/o3-mini": "mixtral-8x7b-32768",
                 "anthropic/claude-3.5-sonnet": "llama-3.3-70b-versatile",
-                "google/gemini-2.0-flash-001": "llama-3.3-70b-versatile",
-                "meta-llama/llama-4-scout": "llama-3.3-70b-versatile",
+                "google/gemini-2.0-flash-001": "llama-3.1-8b-instant",
+                "meta-llama/llama-4-scout": "llama-3.1-8b-instant",
                 "deepseek/deepseek-chat": "deepseek-r1-distill-llama-70b",
                 "google/gemini-1.5-flash": "llama-3.1-8b-instant",
             }
-            return model_map.get(self.model, "llama-3.3-70b-versatile")
+            return model_map.get(self.model, "llama-3.1-8b-instant")
         return self.model
 
     def chat_stream(self, messages: list[dict], tools: list[dict] | None = None):

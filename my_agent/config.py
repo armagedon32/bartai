@@ -18,7 +18,7 @@ class Config:
         self.max_turns = int(os.getenv("AGENT_MAX_TURNS", "30"))
         self.max_tool_retries = int(os.getenv("AGENT_MAX_TOOL_RETRIES", "5"))
         self.temperature = float(os.getenv("AGENT_TEMPERATURE", "0.7"))
-        self.max_tokens = int(os.getenv("AGENT_MAX_TOKENS", "8192"))
+        self.max_tokens = int(os.getenv("AGENT_MAX_TOKENS", "4096"))
         self.data_dir = Path(os.getenv("AGENT_DATA_DIR", str(Path.home() / ".my_agent")))
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.conv_dir = self.data_dir / "conversations"
