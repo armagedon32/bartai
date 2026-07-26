@@ -537,6 +537,7 @@ async function registerUser() {
     const data = await r.json();
     if (!r.ok) { errEl.textContent = data.detail || 'Registration failed'; errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Create Account'; return; }
     sucEl.textContent = 'Account created! You can now sign in.'; sucEl.style.display = '';
+    showToast('Account created successfully!');
     document.getElementById('registerEmail').value = '';
     document.getElementById('registerPassword').value = '';
     document.getElementById('registerCode').value = '';
