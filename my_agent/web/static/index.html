@@ -202,6 +202,8 @@
   .auth-card .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
   .auth-card .auth-toggle a:hover { text-decoration: underline; }
   .auth-card .auth-success { background: rgba(16,163,127,.12); color: var(--accent); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .auth-card .field-error { color: var(--danger); font-size: 12px; margin-top: 4px; display: none; }
+  .auth-card input.input-error { border-color: var(--danger); }
   @media (max-width: 500px) {
     .auth-hero h1 { font-size: 26px; }
     .auth-hero .hero-features { flex-direction: column; align-items: center; }
@@ -264,19 +266,22 @@
         <div class="auth-success" id="registerSuccess"></div>
         <div class="form-group">
           <label>Name (optional)</label>
-          <input type="text" id="registerName" placeholder="Your name" onkeydown="if(event.key==='Enter')registerUser()">
+          <input type="text" id="registerName" placeholder="Your name" onkeydown="if(event.key==='Enter')registerUser()" oninput="clearFieldError(this)">
         </div>
         <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="registerEmail" placeholder="you@example.com" onkeydown="if(event.key==='Enter')registerUser()">
+          <label>Email <span style="color:var(--danger)">*</span></label>
+          <input type="email" id="registerEmail" placeholder="you@example.com" onkeydown="if(event.key==='Enter')registerUser()" oninput="clearFieldError(this)">
+          <div class="field-error" id="emailError">Email is required</div>
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="registerPassword" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')registerUser()">
+          <label>Password <span style="color:var(--danger)">*</span></label>
+          <input type="password" id="registerPassword" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')registerUser()" oninput="clearFieldError(this)">
+          <div class="field-error" id="passwordError">Password is required (min 6 characters)</div>
         </div>
         <div class="form-group">
-          <label>Activation Code</label>
-          <input type="text" id="registerCode" placeholder="Ask admin for a code" onkeydown="if(event.key==='Enter')registerUser()">
+          <label>Activation Code <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="registerCode" placeholder="Ask admin for a code" onkeydown="if(event.key==='Enter')registerUser()" oninput="clearFieldError(this)">
+          <div class="field-error" id="codeError">Activation code is required</div>
         </div>
         <button class="auth-btn" id="registerBtn" onclick="registerUser()">Create Account</button>
         <div class="auth-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
@@ -489,20 +494,42 @@ async function loginUser() {
 }
 
 async function registerUser() {
+  const errEl = document.getElementById('registerError');
+  const sucEl = document.getElementById('registerSuccess');
+  const btn = document.getElementById('registerBtn');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  const fields = [
+    { id: 'registerEmail', errorId: 'emailError', label: 'Email', validate: v => v.includes('@') },
+    { id: 'registerPassword', errorId: 'passwordError', label: 'Password', validate: v => v.length >= 6 },
+    { id: 'registerCode', errorId: 'codeError', label: 'Activation code', validate: v => v.length > 0 },
+  ];
+
+  let hasError = false;
+  for (const f of fields) {
+    const el = document.getElementById(f.id);
+    const err = document.getElementById(f.errorId);
+    el.classList.remove('input-error');
+    err.style.display = 'none';
+    if (!f.validate(el.value.trim())) {
+      el.classList.add('input-error');
+      err.style.display = '';
+      hasError = true;
+    }
+  }
+
+  if (hasError) { errEl.textContent = 'Please fix the highlighted fields.'; errEl.style.display = ''; return; }
+
   const email = document.getElementById('registerEmail').value.trim();
   const password = document.getElementById('registerPassword').value;
   const code = document.getElementById('registerCode').value.trim();
   const name = document.getElementById('registerName').value.trim();
-  const errEl = document.getElementById('registerError');
-  const sucEl = document.getElementById('registerSuccess');
-  const btn = document.getElementById('registerBtn');
-  if (!email || !password || !code) { errEl.textContent = 'Email, password, and activation code required'; errEl.style.display = ''; return; }
   btn.disabled = true; btn.textContent = 'Creating account...';
   try {
     const r = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, code, name }) });
     const data = await r.json();
     if (!r.ok) { errEl.textContent = data.detail || 'Registration failed'; errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Create Account'; return; }
-    errEl.style.display = 'none';
     sucEl.textContent = 'Account created! You can now sign in.'; sucEl.style.display = '';
     document.getElementById('registerEmail').value = '';
     document.getElementById('registerPassword').value = '';
@@ -511,6 +538,14 @@ async function registerUser() {
     setTimeout(() => showLogin(), 2000);
   } catch (e) { errEl.textContent = 'Connection error'; errEl.style.display = ''; }
   btn.disabled = false; btn.textContent = 'Create Account';
+}
+
+function clearFieldError(el) {
+  el.classList.remove('input-error');
+  const errorId = el.id + 'Error';
+  const err = document.getElementById(errorId);
+  if (err) err.style.display = 'none';
+  document.getElementById('registerError').style.display = 'none';
 }
 
 async function logout() {
