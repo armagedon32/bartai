@@ -57,6 +57,7 @@ class ConversationManager:
             )
 
     def list_all(self) -> list[dict]:
+        self._load_all()
         result = []
         for name in self._conversations:
             meta = self._metadatas.get(name, {})
