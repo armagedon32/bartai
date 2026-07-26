@@ -79,11 +79,14 @@ def seed_admin():
     if not existing:
         pw = _hash_password("admin123")
         conn.execute(
-            "INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)",
+            "INSERT INTO users (email, password, name, role, activated_at) VALUES (?, ?, ?, ?, datetime('now'))",
             ("admin@bart.ai", pw, "Admin", "admin"),
         )
         conn.commit()
         print("Default admin account: admin@bart.ai / admin123")
+    else:
+        conn.execute("UPDATE users SET activated_at = datetime('now') WHERE email = ? AND activated_at IS NULL", ("admin@bart.ai",))
+        conn.commit()
     conn.close()
 
 
@@ -144,7 +147,7 @@ def login_user(email: str, password: str) -> dict:
         return {"success": False, "error": "Account is disabled."}
     if not _verify_password(password, user["password"]):
         return {"success": False, "error": "Invalid email or password."}
-    if _is_account_expired(user["activated_at"]):
+    if user["role"] != "admin" and _is_account_expired(user["activated_at"]):
         return {"success": False, "error": f"Account expired. Contact admin to reactivate (valid for {ACCOUNT_EXPIRY_DAYS} days)."}
 
     token = secrets.token_hex(32)
@@ -185,7 +188,7 @@ def validate_token(token: str) -> dict | None:
     if not row:
         return None
 
-    if _is_account_expired(row["activated_at"]):
+    if row["role"] != "admin" and _is_account_expired(row["activated_at"]):
         conn = _get_db()
         conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
         conn.commit()
@@ -252,7 +255,7 @@ def list_users() -> list[dict]:
     result = []
     for r in rows:
         d = dict(r)
-        d["expired"] = _is_account_expired(r["activated_at"])
+        d["expired"] = False if r["role"] == "admin" else _is_account_expired(r["activated_at"])
         result.append(d)
     return result
 
