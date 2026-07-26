@@ -160,7 +160,7 @@ async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
 @app.get("/api/conversations")
 async def list_conversations(user: dict = Depends(get_current_user)):
     ua = get_agent_for_user(user["id"])
-    convs = ua.conversations.list()
+    convs = ua.conversations.list_all()
     return {"conversations": convs, "current": ua.conversations.current}
 
 
@@ -169,21 +169,21 @@ async def create_conversation(user: dict = Depends(get_current_user)):
     ua = get_agent_for_user(user["id"])
     name = f"chat_{uuid.uuid4().hex[:8]}"
     ua.conversations.switch(name)
-    return {"conversations": ua.conversations.list(), "current": ua.conversations.current}
+    return {"conversations": ua.conversations.list_all(), "current": ua.conversations.current}
 
 
 @app.delete("/api/conversations/{name}")
 async def delete_conversation(name: str, user: dict = Depends(get_current_user)):
     ua = get_agent_for_user(user["id"])
     result = ua.conversations.delete(name)
-    return {"message": result, "conversations": ua.conversations.list(), "current": ua.conversations.current}
+    return {"message": result, "conversations": ua.conversations.list_all(), "current": ua.conversations.current}
 
 
 @app.post("/api/conversations/{name}/rename")
 async def rename_conversation(name: str, req: RenameRequest, user: dict = Depends(get_current_user)):
     ua = get_agent_for_user(user["id"])
     result = ua.conversations.rename(name, req.name)
-    return {"message": result, "conversations": ua.conversations.list(), "current": ua.conversations.current}
+    return {"message": result, "conversations": ua.conversations.list_all(), "current": ua.conversations.current}
 
 
 @app.get("/api/conversations/{name}/messages")

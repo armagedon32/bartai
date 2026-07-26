@@ -232,12 +232,12 @@ class Agent:
             return "Current conversation cleared."
 
         if command == "/new":
-            name = arg.strip() or f"conv_{len(self.conversations.list())}"
+            name = arg.strip() or f"conv_{len(self.conversations.list_all())}"
             self.conversations.switch(name)
             return f"Started new conversation '{name}'."
 
         if command == "/list":
-            convs = self.conversations.list()
+            convs = self.conversations.list_all()
             if not convs:
                 return "No conversations."
             lines = ["Conversations:"]

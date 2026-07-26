@@ -56,7 +56,7 @@ class ConversationManager:
                 json.dumps(self._metadatas[name], indent=2), encoding="utf-8"
             )
 
-    def list(self) -> list[dict]:
+    def list_all(self) -> list[dict]:
         result = []
         for name in self._conversations:
             meta = self._metadatas.get(name, {})
