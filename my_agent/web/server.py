@@ -262,6 +262,8 @@ async def get_config(user: dict = Depends(get_current_user)):
 
 @app.post("/api/config/model")
 async def set_model(req: ModelRequest, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can change model")
     config.model = req.model
     agent.llm.model = req.model
     return {"model": config.model}
