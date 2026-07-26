@@ -1084,10 +1084,16 @@ function renderUsers(users) {
   const el = document.getElementById('usersList');
   if (!users.length) { el.innerHTML = '<div style="color:var(--text2)">No users</div>'; return; }
   el.innerHTML = users.map(u => {
-    const banned = u.banned ? ' (banned)' : '';
+    const deactivated = u.banned ? ' (deactivated)' : '';
+    const activeLabel = u.banned ? 'Activate' : 'Deactivate';
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-      <span><strong>${escHtml(u.email)}</strong> ${u.role ? '<span style="color:var(--accent)">(' + u.role + ')</span>' : ''}${banned}</span>
-      ${u.role !== 'admin' ? `<button class="btn-close" style="padding:2px 10px;font-size:12px" onclick="toggleBan(${u.id}, this)">${u.banned ? 'Unban' : 'Ban'}</button>` : ''}
+      <span><strong>${escHtml(u.email)}</strong> ${u.role ? '<span style="color:var(--accent)">(' + u.role + ')</span>' : ''}${deactivated}</span>
+      <div style="display:flex;gap:4px">
+        ${u.role !== 'admin' ? `
+          <button class="btn-close" style="padding:2px 10px;font-size:12px" onclick="toggleBan(${u.id})">${activeLabel}</button>
+          <button class="btn-danger" style="padding:2px 10px;font-size:12px;background:var(--danger);color:#fff;border:none;border-radius:6px;cursor:pointer" onclick="deleteUser(${u.id}, '${escHtml(u.email)}')">Delete</button>
+        ` : ''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -1117,12 +1123,21 @@ async function generateCode() {
   btn.disabled = false; btn.textContent = 'Generate Code';
 }
 
-async function toggleBan(userId, btn) {
+async function toggleBan(userId) {
   try {
     const data = await api(`/api/admin/users/${userId}/ban`, { method: 'POST' });
-    showToast(data.message);
+    showToast(data.banned ? 'Account deactivated' : 'Account activated');
     loadAdminData();
-  } catch (e) { showToast('Failed to toggle ban', 'error'); }
+  } catch (e) { showToast('Failed to toggle account status', 'error'); }
+}
+
+async function deleteUser(userId, email) {
+  if (!confirm(`Delete account "${email}"? This cannot be undone.`)) return;
+  try {
+    const data = await api(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    showToast(data.message || 'User deleted');
+    loadAdminData();
+  } catch (e) { showToast('Failed to delete user', 'error'); }
 }
 
 // Init

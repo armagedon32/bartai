@@ -304,6 +304,16 @@ async def admin_toggle_ban(user_id: int, user: dict = Depends(get_current_user))
     return result
 
 
+@app.delete("/api/admin/users/{user_id}")
+async def admin_delete_user(user_id: int, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403)
+    result = auth.delete_user(user_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
 @app.on_event("startup")
 async def startup():
     auth.init_db()

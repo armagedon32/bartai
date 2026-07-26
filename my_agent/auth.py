@@ -237,3 +237,23 @@ def toggle_ban_user(user_id: int) -> dict:
     conn.commit()
     conn.close()
     return {"success": True, "banned": bool(new_val)}
+
+
+def delete_user(user_id: int) -> dict:
+    conn = _get_db()
+    user = conn.execute("SELECT id, role FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        conn.close()
+        return {"success": False, "error": "User not found."}
+    if user["role"] == "admin":
+        conn.close()
+        return {"success": False, "error": "Cannot delete admin account."}
+    conn.execute("DELETE FROM tokens WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    import shutil
+    user_dir = get_user_conversation_dir(user_id)
+    if user_dir.exists():
+        shutil.rmtree(str(user_dir))
+    return {"success": True, "message": "User deleted."}
