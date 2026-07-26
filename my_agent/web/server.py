@@ -128,7 +128,16 @@ async def event_stream(message: str, user_id: int, images: list[str] | None = No
             if event["type"] == "error":
                 break
     except Exception as e:
-        yield f"event: error\ndata: {json.dumps({'content': str(e)})}\n\n"
+        err_msg = str(e)
+        # Extract meaningful API error details
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                body = e.response.json()
+                if 'error' in body:
+                    err_msg = body['error'].get('message', str(e))
+            except Exception:
+                pass
+        yield f"event: error\ndata: {json.dumps({'content': f'API Error: {err_msg}'})}\n\n"
 
 
 def _auto_rename(ua, message: str):
