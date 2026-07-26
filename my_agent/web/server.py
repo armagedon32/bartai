@@ -68,6 +68,10 @@ class RegisterRequest(BaseModel):
     password: str
     name: str = ""
 
+class VerifyRequest(BaseModel):
+    email: str
+    code: str
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -89,10 +93,18 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 @app.post("/api/auth/register")
 async def register(req: RegisterRequest):
-    result = auth.register_user(req.email, req.password, req.name)
+    result = auth.send_verification_code(req.email, req.password, req.name)
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
-    return {"message": "Registration successful"}
+    return {"message": result["message"]}
+
+
+@app.post("/api/auth/verify")
+async def verify(req: VerifyRequest):
+    result = auth.verify_email(req.email, req.code)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {"message": result["message"]}
 
 
 @app.post("/api/auth/login")

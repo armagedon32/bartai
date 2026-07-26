@@ -3,14 +3,94 @@ import hashlib
 import secrets
 import json
 import time
+import os
+import smtplib
 from pathlib import Path
 from datetime import datetime, timedelta
+from email.mime.text import MIMEText
 
 
 DB_PATH = Path(__file__).parent.parent / "data" / "bart.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 TOKEN_EXPIRY_DAYS = 30
+
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "")
+
+_verification_codes: dict[str, dict] = {}
+
+
+def _send_email(to: str, subject: str, body: str) -> bool:
+    if not SMTP_HOST or not SMTP_USER:
+        return False
+    try:
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_FROM or SMTP_USER
+        msg["To"] = to
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASSWORD)
+            s.send_message(msg)
+        return True
+    except Exception:
+        return False
+
+
+def send_verification_code(email: str, password: str, name: str = "") -> dict:
+    email = email.lower().strip()
+    if not email or "@" not in email:
+        return {"success": False, "error": "Invalid email address."}
+    if len(password) < 6:
+        return {"success": False, "error": "Password must be at least 6 characters."}
+
+    conn = _get_db()
+    existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    if existing:
+        return {"success": False, "error": "Email already registered."}
+
+    code = f"{secrets.randbelow(900000) + 100000}"
+    _verification_codes[email] = {
+        "code": code,
+        "password": password,
+        "name": name.strip(),
+        "expires": time.time() + 600,
+    }
+    sent = _send_email(email, "Your BArt AI Verification Code", f"Your verification code is: {code}\n\nThis code expires in 10 minutes.")
+    if not sent:
+        return {"success": False, "error": "Failed to send verification email. Check SMTP settings."}
+    return {"success": True, "message": "Verification code sent to your email."}
+
+
+def verify_email(email: str, code: str) -> dict:
+    email = email.lower().strip()
+    data = _verification_codes.pop(email, None)
+    if not data:
+        return {"success": False, "error": "No verification code found. Please register again."}
+    if time.time() > data["expires"]:
+        return {"success": False, "error": "Verification code expired. Please register again."}
+    if data["code"] != code.strip():
+        _verification_codes[email] = data
+        return {"success": False, "error": "Invalid verification code."}
+
+    pw = _hash_password(data["password"])
+    conn = _get_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (email, password, name) VALUES (?, ?, ?)",
+            (email, pw, data["name"]),
+        )
+        conn.commit()
+        return {"success": True, "message": "Email verified and account created!"}
+    except sqlite3.IntegrityError:
+        return {"success": False, "error": "Email already registered."}
+    finally:
+        conn.close()
 
 
 def _get_db():
