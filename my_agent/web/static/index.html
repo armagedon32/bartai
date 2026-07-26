@@ -535,7 +535,17 @@ async function registerUser() {
   try {
     const r = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, code, name }) });
     const data = await r.json();
-    if (!r.ok) { errEl.textContent = data.detail || 'Registration failed'; errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    if (!r.ok) {
+      const detail = data.detail || 'Registration failed';
+      errEl.textContent = detail; errEl.style.display = '';
+      if (detail.toLowerCase().includes('code')) {
+        document.getElementById('codeError').textContent = detail;
+        document.getElementById('codeError').style.display = '';
+        document.getElementById('registerCode').classList.add('input-error');
+        showToast(detail, 'error');
+      }
+      btn.disabled = false; btn.textContent = 'Create Account'; return;
+    }
     sucEl.textContent = 'Account created! You can now sign in.'; sucEl.style.display = '';
     showToast('Account created successfully!');
     document.getElementById('registerEmail').value = '';
