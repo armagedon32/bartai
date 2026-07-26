@@ -5,11 +5,16 @@ from openai import OpenAI, AsyncOpenAI
 
 class LLMClient:
     def __init__(self, config):
-        self.provider = config.provider
         self.model = config.model
         self.embedding_model = config.embedding_model
         self.temperature = config.temperature
         self.max_tokens = config.max_tokens
+
+        # Auto-fallback kung walang Groq key
+        if config.provider == "groq" and not config.groq_api_key:
+            self.provider = "openrouter"
+        else:
+            self.provider = config.provider
 
         if self.provider == "groq":
             base_url = config.groq_base_url
