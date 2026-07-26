@@ -399,7 +399,8 @@ async function api(url, opts = {}) {
   if (token) headers['Authorization'] = 'Bearer ' + token;
   const r = await fetch(url, { headers, ...opts });
   if (r.status === 401) { setToken(null); showAuth(); throw new Error('Unauthorized'); }
-  return r.json();
+  try { return await r.json(); }
+  catch { throw new Error('Invalid server response (' + r.status + ')'); }
 }
 
 function showAuth() {
@@ -688,6 +689,8 @@ function executeDelete() {
       }
       showToast(`"${name}" deleted`, 'success');
     });
+  }).catch(e => {
+    if (e.message !== 'Unauthorized') showToast('Delete failed: ' + e.message, 'error');
   });
 }
 
