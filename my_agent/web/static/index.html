@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BArt AI</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #212121; --bg2: #171717; --bg3: #2f2f2f; --bg4: #3a3a3a;
+    --text: #e0e0e0; --text2: #a0a0a0; --accent: #10a37f; --accent2: #0e8c6b;
+    --border: #3a3a3a; --user-bg: #2f2f2f; --assistant-bg: #2a2a2a;
+    --danger: #ef4444; --radius: 12px; --sidebar-w: 280px;
+  }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  body { display: flex; overflow: hidden; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  /* Sidebar */
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--bg2); display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+  .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+  .sidebar-header h1 { font-size: 18px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+  .sidebar-header h1 svg { width: 22px; height: 22px; }
+  .new-chat-btn { margin-top: 12px; width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .2s; }
+  .new-chat-btn:hover { background: var(--bg3); }
+  .conv-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .conv-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; display: flex; align-items: center; justify-content: space-between; transition: background .15s; font-size: 13px; }
+  .conv-item:hover { background: var(--bg3); }
+  .conv-item.active { background: var(--bg4); }
+  .conv-item .conv-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-item .conv-del { opacity: 0; color: var(--text2); cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 12px; transition: all .15s; }
+  .conv-item:hover .conv-del { opacity: 1; }
+  .conv-item .conv-del:hover { color: var(--danger); background: rgba(239,68,68,.15); }
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); }
+  .sidebar-footer .model-info { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 8px; border-radius: 6px; transition: background .2s; }
+  .sidebar-footer .model-info:hover { background: var(--bg3); }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 0; }
+  .messages { max-width: 768px; margin: 0 auto; padding: 24px 24px 0; }
+  .msg { padding: 16px 20px; margin-bottom: 8px; border-radius: var(--radius); line-height: 1.6; font-size: 15px; }
+  .msg.user { background: var(--user-bg); margin-left: 40px; }
+  .msg.assistant { background: var(--assistant-bg); }
+  .msg.system { background: transparent; color: var(--text2); font-style: italic; font-size: 13px; text-align: center; }
+  .msg .label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .msg .content { word-wrap: break-word; }
+  .msg .content p { margin-bottom: 8px; }
+  .msg .content p:last-child { margin-bottom: 0; }
+  .msg .content pre { background: #1a1a1a; border-radius: 8px; padding: 14px; overflow-x: auto; margin: 8px 0; }
+  .msg .content pre code { background: none; padding: 0; font-size: 13px; }
+  .msg .content code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  .msg .content ul, .msg .content ol { padding-left: 24px; margin: 8px 0; }
+  .msg .content blockquote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text2); margin: 8px 0; }
+  .msg .content table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+  .msg .content th, .msg .content td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  .msg .content th { background: var(--bg3); }
+  .streaming-cursor::after { content: '\u258C'; animation: blink 1s step-end infinite; color: var(--accent); }
+  @keyframes blink { 50% { opacity: 0; } }
+  .tool-info { font-size: 12px; color: var(--accent); margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tool-badge { background: rgba(16,163,127,.15); padding: 2px 8px; border-radius: 4px; }
+  .usage-info { font-size: 11px; color: var(--text2); text-align: center; padding: 4px 0 12px; }
+
+  /* Tool Cards */
+  .tool-cards { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+  .tool-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: rgba(16,163,127,.04); }
+  .tool-card-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; color: var(--text); user-select: none; transition: background .15s; }
+  .tool-card-header:hover { background: var(--bg3); }
+  .tool-card-header .tci { flex-shrink: 0; font-size: 14px; }
+  .tool-card-header .tc-status { margin-left: auto; font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+  .tool-card-header .tc-status .spinner-inline { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+  .tool-card-header .tc-status .check { color: var(--accent); }
+  .tool-card-header .tc-status .xmark { color: var(--danger); }
+  .tool-card-body { border-top: 1px solid var(--border); padding: 8px 10px; font-size: 12px; font-family: 'Consolas', 'Courier New', monospace; background: #1a1a1a; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: var(--text2); display: none; }
+  .tool-card-body.open { display: block; }
+  .tool-card-body .truncated-note { color: var(--text2); font-style: italic; padding-top: 4px; border-top: 1px solid var(--border); margin-top: 4px; font-family: sans-serif; }
+
+  /* Input */
+  .input-area { max-width: 768px; margin: 0 auto; width: 100%; padding: 0 24px 24px; }
+  .file-preview-bar { display: flex; gap: 6px; padding: 0 0 8px; flex-wrap: wrap; }
+  .file-preview-bar .file-chip { display: flex; align-items: center; gap: 6px; background: var(--bg4); border-radius: 8px; padding: 4px 8px 4px 6px; font-size: 12px; max-width: 180px; }
+  .file-preview-bar .file-chip .ficon { flex-shrink: 0; width: 16px; text-align: center; }
+  .file-preview-bar .file-chip .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-preview-bar .file-chip .remove { cursor: pointer; color: var(--text2); padding: 0 2px; font-size: 14px; line-height: 1; flex-shrink: 0; }
+  .file-preview-bar .file-chip .remove:hover { color: var(--danger); }
+  .file-preview-bar .file-chip.image-chip { padding: 2px 8px 2px 2px; }
+  .file-preview-bar .file-chip.image-chip img { width: 28px; height: 28px; border-radius: 4px; object-fit: cover; }
+  .input-wrap { display: flex; align-items: flex-end; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 8px 6px 8px 16px; transition: border-color .2s; }
+  .input-wrap:focus-within { border-color: var(--accent); }
+  .input-wrap textarea { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 15px; resize: none; max-height: 200px; line-height: 1.5; font-family: inherit; }
+  .input-wrap textarea::placeholder { color: var(--text2); }
+  .upload-btn { width: 32px; height: 32px; border: none; border-radius: 50%; background: transparent; color: var(--text2); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0; }
+  .upload-btn:hover { color: var(--accent); background: rgba(16,163,127,.1); }
+  .upload-btn svg { width: 18px; height: 18px; }
+  .send-btn { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s; flex-shrink: 0; }
+  .send-btn:hover { background: var(--accent2); }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .send-btn svg { width: 18px; height: 18px; }
+  .input-disabled { opacity: .5; pointer-events: none; }
+
+  /* Drag-drop overlay */
+  .drop-overlay { display: none; position: fixed; inset: 0; background: rgba(16,163,127,.08); border: 3px dashed var(--accent); z-index: 500; align-items: center; justify-content: center; pointer-events: none; }
+  .drop-overlay.show { display: flex; }
+  .drop-overlay span { background: var(--bg2); padding: 16px 32px; border-radius: 12px; font-size: 18px; color: var(--accent); }
+
+  /* Image in messages */
+  .msg .content img { max-width: 100%; max-height: 400px; border-radius: 8px; margin: 8px 0; }
+  .msg.user .content .user-images { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .msg.user .content .user-images img { width: auto; max-height: 200px; border-radius: 8px; }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 400px; max-width: 90vw; }
+  .modal h2 { font-size: 18px; margin-bottom: 20px; }
+  .modal label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; margin-top: 16px; }
+  .modal label:first-of-type { margin-top: 0; }
+  .modal select, .modal input { width: 100%; padding: 10px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
+  .modal select:focus, .modal input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .modal-actions button { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; transition: background .2s; }
+  .btn-close { background: var(--bg4); color: var(--text); }
+  .btn-close:hover { background: var(--border); }
+  .btn-save { background: var(--accent); color: #fff; }
+  .btn-save:hover { background: var(--accent2); }
+
+  /* Welcome Screen (ChatGPT/DeepSeek style) */
+  .main { position: relative; }
+  .welcome-screen { display: flex; flex: 1; align-items: center; justify-content: center; flex-direction: column; background: var(--bg); }
+  .welcome-content { text-align: center; max-width: 600px; width: 100%; padding: 0 24px; }
+  .welcome-logo { margin-bottom: 8px; }
+  .welcome-logo svg { width: 52px; height: 52px; stroke: var(--accent); }
+  .welcome-content h1 { font-size: 36px; font-weight: 700; color: var(--text); margin: 8px 0; letter-spacing: -.5px; }
+  .welcome-content .tagline { color: var(--text2); font-size: 15px; margin-bottom: 28px; }
+  .welcome-input-wrap { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 12px 12px 12px 20px; transition: border-color .2s; box-shadow: 0 2px 12px rgba(0,0,0,.3); }
+  .welcome-input-wrap:focus-within { border-color: var(--accent); }
+  .welcome-input-wrap textarea { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 16px; resize: none; max-height: 150px; line-height: 1.5; font-family: inherit; }
+  .welcome-input-wrap textarea::placeholder { color: var(--text2); }
+  .welcome-input-wrap .send-btn { width: 38px; height: 38px; }
+  .welcome-suggestions { display: flex; gap: 10px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
+  .welcome-suggestions button { padding: 10px 20px; border: 1px solid var(--border); border-radius: 24px; background: var(--bg3); color: var(--text); cursor: pointer; font-size: 13px; transition: all .2s; }
+  .welcome-suggestions button:hover { background: var(--bg4); border-color: var(--accent); color: #fff; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--bg3); border: 1px solid var(--border); padding: 12px 24px; border-radius: 10px; font-size: 13px; z-index: 999; opacity: 0; transition: all .3s; pointer-events: none; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast .toast-icon { width: 18px; height: 18px; flex-shrink: 0; }
+  .toast .toast-icon.success { stroke: var(--accent); }
+  .toast .toast-icon.error { stroke: var(--danger); }
+  .toast .toast-msg { flex: 1; }
+
+  /* Confirm Dialog */
+  .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 1100; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+  .confirm-overlay.open { display: flex; }
+  .confirm-dialog { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 380px; max-width: 90vw; text-align: center; animation: confirmIn .2s ease; }
+  @keyframes confirmIn { from { transform: scale(.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .confirm-dialog .confirm-icon { width: 52px; height: 52px; margin: 0 auto 18px; background: rgba(239,68,68,.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .confirm-dialog .confirm-icon svg { width: 26px; height: 26px; stroke: var(--danger); }
+  .confirm-dialog h3 { font-size: 17px; margin-bottom: 8px; font-weight: 600; }
+  .confirm-dialog p { font-size: 14px; color: var(--text2); margin-bottom: 26px; line-height: 1.5; }
+  .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+  .confirm-actions button { padding: 10px 24px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all .2s; min-width: 100px; }
+  .confirm-actions .btn-cancel { background: var(--bg4); color: var(--text); }
+  .confirm-actions .btn-cancel:hover { background: var(--border); }
+  .confirm-actions .btn-danger { background: var(--danger); color: #fff; }
+  .confirm-actions .btn-danger:hover { background: #dc2626; }
+  .confirm-actions .btn-danger:active { transform: scale(.97); }
+
+  /* Auth pages */
+  .auth-screen { display: flex; flex: 1; background: var(--bg); overflow-y: auto; }
+  .auth-center { display: flex; flex-direction: column; align-items: center; width: 100%; min-height: 100%; padding: 48px 24px; justify-content: center; }
+  .auth-container { width: 400px; max-width: 100%; }
+  .auth-hero { max-width: 520px; text-align: center; margin-top: 40px; }
+  .auth-hero .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(16,163,127,.12); color: var(--accent); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .auth-hero h1 { display: none; }
+  .auth-hero .hero-desc { color: var(--text2); font-size: 14px; line-height: 1.7; margin-bottom: 14px; }
+  .auth-hero .hero-desc strong { color: var(--text); }
+  .auth-hero .hero-features { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .auth-hero .hero-feature { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); padding: 4px 10px; background: var(--bg3); border-radius: 8px; border: 1px solid var(--border); }
+  .auth-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 36px; }
+  .auth-card h1 { font-size: 22px; font-weight: 700; color: var(--accent); text-align: center; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .auth-card h1 svg { width: 24px; height: 24px; }
+  .auth-card .subtitle { text-align: center; color: var(--text2); font-size: 14px; margin-bottom: 28px; }
+  .auth-card .form-group { margin-bottom: 18px; }
+  .auth-card label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+  .auth-card input { width: 100%; padding: 12px 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 14px; outline: none; transition: border-color .2s; }
+  .auth-card input:focus { border-color: var(--accent); }
+  .auth-card .auth-btn { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; }
+  .auth-card .auth-btn:hover { background: var(--accent2); }
+  .auth-card .auth-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .auth-card .auth-error { background: rgba(239,68,68,.12); color: var(--danger); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .auth-card .auth-toggle { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text2); }
+  .auth-card .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .auth-card .auth-toggle a:hover { text-decoration: underline; }
+  .auth-card .auth-success { background: rgba(16,163,127,.12); color: var(--accent); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+  @media (max-width: 500px) {
+    .auth-hero h1 { font-size: 26px; }
+    .auth-hero .hero-features { flex-direction: column; align-items: center; }
+    .auth-center { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      BArt AI
+    </h1>
+    <button class="new-chat-btn" onclick="newConversation()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Chat
+    </button>
+  </div>
+  <div class="conv-list" id="convList"></div>
+  <div class="sidebar-footer">
+    <div class="model-info" onclick="openSettings()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span id="modelDisplay">gpt-4o-mini</span>
+    </div>
+    <div class="model-info" onclick="logout()" style="margin-top:4px;color:var(--text2)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span id="userDisplay">Sign out</span>
+    </div>
+  </div>
+</div>
+
+<div class="auth-screen" id="authScreen">
+  <div class="auth-center">
+    <div class="auth-container" id="authContainer">
+      <div class="auth-card" id="loginCard">
+        <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> BArt AI</h1>
+        <p class="subtitle">Sign in to your account</p>
+        <div class="auth-error" id="loginError"></div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" onkeydown="if(event.key==='Enter')loginUser()">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter')loginUser()">
+        </div>
+        <button class="auth-btn" id="loginBtn" onclick="loginUser()">Sign In</button>
+        <div class="auth-toggle">Don't have an account? <a onclick="showRegister()">Create one</a></div>
+      </div>
+      <div class="auth-card" id="registerCard" style="display:none">
+        <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> BArt AI</h1>
+        <p class="subtitle">Create a new account</p>
+        <div class="auth-error" id="registerError"></div>
+        <div class="auth-success" id="registerSuccess"></div>
+        <div class="form-group">
+          <label>Name (optional)</label>
+          <input type="text" id="registerName" placeholder="Your name" onkeydown="if(event.key==='Enter')registerUser()">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="registerEmail" placeholder="you@example.com" onkeydown="if(event.key==='Enter')registerUser()">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="registerPassword" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')registerUser()">
+        </div>
+        <button class="auth-btn" id="registerBtn" onclick="registerUser()">Create Account</button>
+        <div class="auth-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+      </div>
+    </div>
+    <div class="auth-hero">
+      <div class="hero-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Your AI Partner</div>
+      <p class="hero-desc">
+        Your 24/7 AI co-pilot: code execution, web research, document analysis, charts, translation, writing, and math — powered by leading LLMs with vision and memory. <strong>18+ tools, one platform, endless productivity.</strong>
+      </p>
+      <div class="hero-features">
+        <div class="hero-feature">&#x1F50D; Web search</div>
+        <div class="hero-feature">&#x26A1; Code exec</div>
+        <div class="hero-feature">&#x1F4CA; Charts</div>
+        <div class="hero-feature">&#x1F4DD; Writing</div>
+        <div class="hero-feature">&#x1F30D; Translate</div>
+        <div class="hero-feature">&#x1F9E0; Research</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="welcome-screen" id="welcomeScreen">
+    <div class="welcome-content">
+      <div class="welcome-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <h1>BArt AI</h1>
+      <p class="tagline">Your personal AI assistant with tools, memory, and vision</p>
+      <div class="welcome-input-wrap">
+        <textarea id="welcomeInput" rows="1" placeholder="Ask anything..." onkeydown="handleWelcomeKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" onclick="sendFromWelcome()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="welcome-suggestions">
+        <button onclick="startWith('Search the web for latest AI breakthroughs')">Search the web</button>
+        <button onclick="startWith('Write a Python script to organize my Downloads folder')">Write code</button>
+        <button onclick="startWith('Analyze an image or file')">Analyze files</button>
+      </div>
+    </div>
+  </div>
+  <div class="chat-area" id="chatArea" style="display:none">
+    <div class="messages" id="messages"></div>
+  </div>
+  <div class="input-area" id="inputArea" style="display:none">
+    <div class="file-preview-bar" id="filePreviewBar"></div>
+    <div class="input-wrap">
+      <textarea id="input" rows="1" placeholder="Type a message... (paste images/files too)" onkeydown="handleKey(event)" oninput="autoResize(this)" onpaste="handlePaste(event)"></textarea>
+      <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()" title="Attach files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </button>
+      <input type="file" id="fileInput" accept="*/*" multiple style="display:none" onchange="handleFiles(this.files)">
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div class="usage-info" id="usageInfo"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>Settings</h2>
+    <label>Model</label>
+    <select id="modelSelect">
+      <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+      <option value="openai/gpt-4o">GPT-4o</option>
+      <option value="openai/o3-mini">o3 Mini</option>
+      <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+      <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+      <option value="meta-llama/llama-4-scout">Llama 4 Scout</option>
+      <option value="deepseek/deepseek-chat">DeepSeek V3</option>
+    </select>
+    <label>Temperature</label>
+    <input type="number" id="temperatureInput" min="0" max="2" step="0.1">
+    <label>Max Tokens</label>
+    <input type="number" id="maxTokensInput" min="256" max="16384" step="256">
+    <div class="modal-actions">
+      <button class="btn-close" onclick="closeSettings()">Cancel</button>
+      <button class="btn-save" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="drop-overlay" id="dropOverlay"><span>Drop files and images here</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-dialog">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+      </svg>
+    </div>
+    <h3>Delete Conversation</h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" id="confirmDeleteBtn" onclick="executeDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TEXT_TYPES = new Set(['text/plain','text/csv','text/html','text/xml','application/json','application/xml',
+  'text/javascript','application/javascript','text/typescript','text/x-python','text/x-java','text/x-c','text/x-c++',
+  'text/x-ruby','text/x-php','text/x-go','text/x-rust','text/x-swift','text/x-kotlin','text/x-scala',
+  'text/x-sh','text/x-yaml','text/markdown','text/x-markdown','text/css','text/x-less','text/x-scss',
+  'text/x-sql','text/x-dockerfile','text/x-toml','text/x-ini','text/x-makefile','text/x-perl',
+  'application/x-yaml','application/typescript','application/x-python-code']);
+
+let state = { conversations: [], current: 'default', streaming: false, model: 'openai/gpt-4o-mini', temperature: 0.7, maxTokens: 4096, selectedImages: [], selectedFiles: [], user: null };
+let abortController = null;
+
+function getToken() { return localStorage.getItem('bart_token'); }
+function setToken(t) { if (t) localStorage.setItem('bart_token', t); else localStorage.removeItem('bart_token'); }
+
+marked.setOptions({ breaks: true, highlight: (code, lang) => { try { return hljs.highlightAuto(code).value; } catch { return code; } } });
+
+async function api(url, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(url, { headers, ...opts });
+  if (r.status === 401) { setToken(null); showAuth(); throw new Error('Unauthorized'); }
+  return r.json();
+}
+
+function showAuth() {
+  document.getElementById('authScreen').style.display = 'flex';
+  document.querySelector('.sidebar').style.display = 'none';
+  document.querySelector('.main').style.display = 'none';
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('chatArea').style.display = 'none';
+  document.getElementById('inputArea').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.querySelector('.sidebar').style.display = 'flex';
+  document.querySelector('.main').style.display = 'flex';
+}
+
+function showLogin() {
+  document.getElementById('loginCard').style.display = '';
+  document.getElementById('registerCard').style.display = 'none';
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('registerError').style.display = 'none';
+}
+
+function showRegister() {
+  document.getElementById('loginCard').style.display = 'none';
+  document.getElementById('registerCard').style.display = '';
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('registerError').style.display = 'none';
+}
+
+async function loginUser() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  if (!email || !password) { errEl.textContent = 'Please fill in all fields'; errEl.style.display = ''; return; }
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await r.json();
+    if (!data.success) { errEl.textContent = data.error; errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Sign In'; return; }
+    setToken(data.token);
+    state.user = data.user;
+    document.getElementById('userDisplay').textContent = data.user.email;
+    showApp();
+    initApp();
+  } catch (e) { errEl.textContent = 'Connection error'; errEl.style.display = ''; }
+  btn.disabled = false; btn.textContent = 'Sign In';
+}
+
+async function registerUser() {
+  const email = document.getElementById('registerEmail').value.trim();
+  const password = document.getElementById('registerPassword').value;
+  const name = document.getElementById('registerName').value.trim();
+  const errEl = document.getElementById('registerError');
+  const sucEl = document.getElementById('registerSuccess');
+  const btn = document.getElementById('registerBtn');
+  if (!email || !password) { errEl.textContent = 'Email and password required'; errEl.style.display = ''; return; }
+  btn.disabled = true; btn.textContent = 'Creating...';
+  try {
+    const r = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.detail || 'Registration failed'; errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    sucEl.textContent = 'Account created! You can now sign in.'; sucEl.style.display = '';
+    errEl.style.display = 'none';
+    document.getElementById('registerEmail').value = '';
+    document.getElementById('registerPassword').value = '';
+    document.getElementById('registerName').value = '';
+    setTimeout(() => showLogin(), 1500);
+  } catch (e) { errEl.textContent = 'Connection error'; errEl.style.display = ''; }
+  btn.disabled = false; btn.textContent = 'Create Account';
+}
+
+async function logout() {
+  try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
+  setToken(null);
+  state.user = null;
+  state.conversations = [];
+  state.current = 'default';
+  document.getElementById('messages').innerHTML = '';
+  showAuth();
+  showLogin();
+}
+
+async function checkAuth() {
+  const token = getToken();
+  if (!token) { showAuth(); return false; }
+  try {
+    const data = await api('/api/auth/me');
+    state.user = data.user;
+    document.getElementById('userDisplay').textContent = data.user.email;
+    return true;
+  } catch { setToken(null); showAuth(); return false; }
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  const icon = type === 'success'
+    ? '<svg class="toast-icon success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+    : '<svg class="toast-icon error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+  t.innerHTML = icon + '<span class="toast-msg">' + msg + '</span>';
+  t.classList.add('show');
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 200) + 'px'; }
+
+function scrollToBottom() { const area = document.getElementById('chatArea'); setTimeout(() => area.scrollTop = area.scrollHeight, 50); }
+
+// File handling
+function readFileAsDataURL(file) {
+  return new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(file); });
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsText(file); });
+}
+
+function fileIcon(name) {
+  const ext = name.split('.').pop()?.toLowerCase();
+  const icons = { py:'🐍',js:'🟨',ts:'🔵',html:'🌐',css:'🎨',json:'📋',xml:'📄',csv:'📊',txt:'📝',
+    md:'📝',yaml:'⚙️',yml:'⚙️',toml:'⚙️',ini:'⚙️',sh:'💻',bat:'💻',ps1:'💻',
+    sql:'🗃️',dockerfile:'🐳',env:'🔒',gitignore:'🙈',pdf:'📕',doc:'📘',docx:'📘',
+    xls:'📗',xlsx:'📗',ppt:'📙',pptx:'📙',zip:'📦',tar:'📦',gz:'📦',
+    pyc:'⚙️',so:'⚙️',dll:'⚙️',exe:'⚙️',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',gif:'🖼️',svg:'🖼️',webp:'🖼️',
+    pdf:'📕',doc:'📘',docx:'📘' };
+  return icons[ext] || '📄';
+}
+
+function isTextFile(file) {
+  if (file.type && TEXT_TYPES.has(file.type)) return true;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const textExts = new Set(['py','js','ts','jsx','tsx','html','htm','css','scss','less','json','xml','csv','txt','md',
+    'yaml','yml','toml','ini','cfg','conf','sh','bash','zsh','bat','ps1','cmd','sql','r','go','rs','rb','php',
+    'java','c','cpp','h','hpp','cs','swift','kt','scala','pl','pm','lua','ex','exs','clj','cljs',
+    'vue','svelte','astro','dockerfile','env','gitignore','gitattributes','editorconfig','makefile',
+    'gradle','sbt','cmake','m','mm','dart','zig','nim','cr','fs','fsx','erl','hrl',
+    'tex','bib','rst','asciidoc','adoc','log','diff','patch','sqlite']);
+  return textExts.has(ext);
+}
+
+async function handleFiles(files) {
+  for (const f of files) {
+    if (f.size > 20 * 1024 * 1024) { showToast(`File too large: ${f.name} (max 20MB)`, 'error'); continue; }
+    const ext = f.name.split('.').pop()?.toLowerCase();
+
+    if (f.type.startsWith('image/')) {
+      const dataUrl = await readFileAsDataURL(f);
+      state.selectedImages.push({ name: f.name, dataUrl });
+    } else if (isTextFile(f)) {
+      const content = await readFileAsText(f);
+      if (content.length > 100000) { showToast(`File too large: ${f.name} (max 100KB text)`, 'error'); continue; }
+      state.selectedFiles.push({ name: f.name, content, type: f.type || 'text/plain' });
+    } else if (ext === 'pdf' || ext === 'docx' || ext === 'doc') {
+      showToast(`Extracting text from ${f.name}...`);
+      const form = new FormData();
+      form.append('file', f);
+      try {
+        const hdrs = {};
+        const tk = getToken();
+        if (tk) hdrs['Authorization'] = 'Bearer ' + tk;
+        const resp = await fetch('/api/extract-text', { method: 'POST', headers: hdrs, body: form });
+        if (!resp.ok) { showToast(`Failed to extract ${f.name}`, 'error'); continue; }
+        const data = await resp.json();
+        state.selectedFiles.push({ name: data.name, content: data.content, type: data.type });
+        showToast(`Extracted ${data.content.length} chars from ${f.name}`);
+      } catch { showToast(`Error processing ${f.name}`, 'error'); }
+    } else {
+      showToast(`Cannot preview ${f.name} — only text, code, images, PDFs, and DOCX files are supported`, 'error');
+    }
+  }
+  renderFilePreviews();
+  document.getElementById('fileInput').value = '';
+}
+
+function handlePaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const files = [];
+  for (const item of items) {
+    if (item.kind === 'file') files.push(item.getAsFile());
+  }
+  if (files.length) { e.preventDefault(); handleFiles(files); }
+}
+
+function renderFilePreviews() {
+  const bar = document.getElementById('filePreviewBar');
+  const all = [...state.selectedFiles, ...state.selectedImages];
+  if (!all.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = all.map((item, i) => {
+    const isImg = !!item.dataUrl;
+    const icon = isImg ? `<img src="${item.dataUrl}">` : fileIcon(item.name);
+    const cls = isImg ? 'file-chip image-chip' : 'file-chip';
+    const realIdx = i;
+    return `<div class="${cls}"><span class="ficon">${icon}</span><span class="fname">${item.name}</span><span class="remove" onclick="removeFile(${realIdx})">×</span></div>`;
+  }).join('');
+}
+
+function removeFile(idx) {
+  const total = state.selectedFiles.length + state.selectedImages.length;
+  if (idx < state.selectedFiles.length) state.selectedFiles.splice(idx, 1);
+  else state.selectedImages.splice(idx - state.selectedFiles.length, 1);
+  renderFilePreviews();
+}
+
+// Drag-drop
+const dropOverlay = document.getElementById('dropOverlay');
+let dragCounter = 0;
+document.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropOverlay.classList.add('show'); });
+document.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove('show'); } });
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault(); dragCounter = 0; dropOverlay.classList.remove('show');
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+
+function showChat(show) {
+  document.getElementById('welcomeScreen').style.display = show ? 'none' : '';
+  document.getElementById('chatArea').style.display = show ? '' : 'none';
+  document.getElementById('inputArea').style.display = show ? '' : 'none';
+}
+
+async function loadConversations() {
+  const data = await api('/api/conversations');
+  state.conversations = data.conversations;
+  state.current = data.current;
+  renderSidebar();
+  const hasReal = data.conversations.some(c => c.name !== 'default' && c.messages > 0);
+  if (hasReal) { await loadMessages(); }
+}
+
+function renderSidebar() {
+  const list = document.getElementById('convList');
+  const filtered = state.conversations.filter(c => c.name !== 'default');
+  if (!filtered.length) { list.innerHTML = '<div style="padding:12px;color:var(--text2);font-size:13px;text-align:center">No conversations</div>'; return; }
+  list.innerHTML = filtered.map(c => {
+    const name = c.name || 'untitled';
+    const count = c.messages || 0;
+    const active = c.current ? 'active' : '';
+    return `<div class="conv-item ${active}" onclick="switchConversation('${name}')">
+      <span class="conv-name">${name} <span style="color:var(--text2);font-size:11px">(${count})</span></span>
+      <span class="conv-del" onclick="event.stopPropagation();deleteConversation('${name}')">×</span>
+    </div>`;
+  }).join('');
+}
+
+async function switchConversation(name) {
+  if (state.streaming) return;
+  await api(`/api/conversations/${encodeURIComponent(name)}/switch`, { method: 'POST' });
+  state.current = name;
+  await loadConversations();
+  await loadMessages();
+}
+
+async function newConversation() {
+  if (state.streaming) return;
+  const data = await api('/api/conversations', { method: 'POST' });
+  state.current = data.current;
+  await loadConversations();
+  document.getElementById('messages').innerHTML = '';
+  showChat(false);
+}
+
+let _pendingDelete = null;
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  _pendingDelete = null;
+}
+
+function executeDelete() {
+  const name = _pendingDelete;
+  closeConfirm();
+  if (!name) return;
+  api(`/api/conversations/${encodeURIComponent(name)}`, { method: 'DELETE' }).then(data => {
+    state.current = data.current;
+    return loadConversations().then(() => {
+      const hasReal = state.conversations.some(c => c.name !== 'default' && c.messages > 0);
+      if (!hasReal) {
+        document.getElementById('messages').innerHTML = '';
+        showChat(false);
+      } else {
+        loadMessages();
+      }
+      showToast(`"${name}" deleted`, 'success');
+    });
+  });
+}
+
+async function deleteConversation(name) {
+  if (state.streaming) return;
+  _pendingDelete = name;
+  document.getElementById('confirmMsg').textContent = `Are you sure you want to delete "${name}"? This cannot be undone.`;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function extractText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.filter(p => p.type === 'text').map(p => p.text).join('\n');
+  return '';
+}
+
+function extractImages(content) {
+  if (typeof content === 'string') return null;
+  if (Array.isArray(content)) return content.filter(p => p.type === 'image_url').map(p => p.image_url?.url || '');
+  return null;
+}
+
+async function loadMessages() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+  const data = await api(`/api/conversations/${encodeURIComponent(state.current)}/messages`);
+  if (!data.messages || data.messages.length === 0) { showChat(false); return; }
+  showChat(true);
+  for (const m of data.messages) {
+    if (m.role === 'system') continue;
+    if (m.role === 'user') {
+      const text = extractText(m.content);
+      const imgs = m.images || extractImages(m.content);
+      const files = m.files || null;
+      appendMessage(text, 'user', false, imgs, files);
+    } else if (m.role === 'assistant') {
+      appendMessage(m.content, 'assistant');
+    }
+  }
+  scrollToBottom();
+}
+
+function appendMessage(content, role, streaming = false, images = null, files = null) {
+  const el = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  const label = role === 'user' ? 'You' : 'Bart';
+  const cls = streaming ? 'content streaming-cursor' : 'content';
+  let attachmentsHtml = '';
+  if (files && files.length) {
+    attachmentsHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
+      files.map(f => `<span style="background:var(--bg4);padding:2px 10px;border-radius:6px;font-size:13px">${fileIcon(f.name)} ${f.name}</span>`).join('') +
+      '</div>';
+  }
+  if (images && images.length) {
+    attachmentsHtml += '<div class="user-images">' + images.map(u => `<img src="${u}" loading="lazy">`).join('') + '</div>';
+  }
+  const contentHtml = content ? marked.parse(content) : '';
+  d.innerHTML = `<div class="label">${label}</div><div class="${cls}">${attachmentsHtml}${contentHtml}</div>`;
+  el.appendChild(d);
+  if (!streaming) scrollToBottom();
+  return d;
+}
+
+function updateMessage(el, content, done = false) {
+  const contentEl = el.querySelector('.content');
+  if (contentEl) {
+    contentEl.innerHTML = content ? marked.parse(content) : '';
+    if (done) contentEl.classList.remove('streaming-cursor');
+  }
+  scrollToBottom();
+}
+
+function toolIcon(name) {
+  const map = {
+    execute_code:'⚡',web_search:'🌐',web_fetch:'📄',file_ops:'📁',call_api:'🔗',
+    search_memory:'🧠',screenshot:'📷',system_info:'💻',browse_web:'🌍',
+    read_file:'📖',write_file:'✏️',list_dir:'📂',grep_search:'🔍',
+    install_package:'📦',run_shell:'💻',python_exec:'🐍',
+    generate_image:'🎨',create_chart:'📊',create_table:'🗂️',compute_math:'🔢',
+    research_topic:'🔬',summarize:'📝',write_document:'📄',translate:'🌍',
+    check_writing:'✓',rephrase:'✍️',
+  };
+  return map[name] || '🔧';
+}
+
+function showToolCards(cards, container) {
+  if (!container) return;
+  container.innerHTML = '';
+  for (const [id, card] of Object.entries(cards)) {
+    const div = document.createElement('div');
+    div.className = 'tool-card';
+    const icon = toolIcon(card.name);
+    let statusHtml = '';
+    if (card.status === 'running') {
+      statusHtml = '<span class="spinner-inline"></span> running';
+    } else if (card.status === 'done') {
+      statusHtml = '<span class="check">✓</span> done';
+    } else {
+      statusHtml = '<span class="xmark">✗</span> failed';
+    }
+    let argsStr = '';
+    try { const parsed = JSON.parse(card.args); argsStr = JSON.stringify(parsed, null, 2); } catch { argsStr = card.args; }
+    const hasResult = card.result && card.result.length > 0;
+    div.innerHTML = `
+      <div class="tool-card-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="tci">${icon}</span>
+        <strong>${card.name}</strong>
+        <span class="tc-status">${statusHtml}</span>
+      </div>
+      <div class="tool-card-body">
+        <strong style="color:var(--accent)">Arguments:</strong>
+        <span style="color:var(--text2)">${argsStr}</span>
+        ${hasResult ? `
+        <hr style="border-color:var(--border);margin:4px 0">
+        <strong style="color:var(--accent)">Result:</strong>
+        <span style="color:var(--text2)">${escHtml(card.result)}${card.result.length >= 2000 ? '<div class="truncated-note">... (truncated)</div>' : ''}</span>
+        ` : ''}
+      </div>`;
+    container.appendChild(div);
+  }
+  scrollToBottom();
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function showUsage(usage) {
+  document.getElementById('usageInfo').textContent =
+    `Tokens: ${usage.prompt_tokens} → ${usage.completion_tokens} (total: ${usage.total_tokens})`;
+}
+
+function setLoading(loading) {
+  state.streaming = loading;
+  document.getElementById('input').disabled = loading;
+  document.getElementById('sendBtn').disabled = loading;
+  document.getElementById('inputArea').classList.toggle('input-disabled', loading);
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+async function ensureConversation() {
+  const data = await api('/api/conversations', { method: 'POST' });
+  state.current = data.current;
+  await loadConversations();
+  showChat(true);
+}
+
+async function sendFromWelcome() {
+  const input = document.getElementById('welcomeInput');
+  const text = input.value.trim();
+  if (!text || state.streaming) return;
+  input.value = '';
+  input.style.height = 'auto';
+  await ensureConversation();
+  document.getElementById('input').value = text;
+  await sendMessage();
+}
+
+function startWith(text) {
+  document.getElementById('welcomeInput').value = text;
+  sendFromWelcome();
+}
+
+function handleWelcomeKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendFromWelcome(); }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  const images = state.selectedImages.map(i => i.dataUrl);
+  const files = state.selectedFiles.map(f => ({ name: f.name, type: f.type, content: f.content }));
+  if (!text && !images.length && !files.length || state.streaming) return;
+
+  if (state.current === 'default') { await ensureConversation(); }
+  if (!document.getElementById('chatArea').style.display) { showChat(true); }
+
+  input.value = '';
+  input.style.height = 'auto';
+  state.selectedImages = [];
+  state.selectedFiles = [];
+  renderFilePreviews();
+  setLoading(true);
+
+  appendMessage(text, 'user', false, images.length ? images : null, files.length ? files : null);
+  const assistantEl = appendMessage('', 'assistant', true);
+
+  try {
+    abortController = new AbortController();
+    const payload = { message: text, conversation: state.current };
+    if (images.length) payload.images = images;
+    if (files.length) payload.files = files;
+    const headers = { 'Content-Type': 'application/json' };
+    const token = getToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: abortController.signal,
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullContent = '';
+
+    let toolCardsContainer = null;
+    let currentToolCards = {};
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('event: ')) {
+          const eventType = line.slice(7).trim();
+          const dataLine = lines[i + 1];
+          if (dataLine && dataLine.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(dataLine.slice(6));
+              if (eventType === 'token') {
+                fullContent += data.content;
+                updateMessage(assistantEl, fullContent);
+              } else if (eventType === 'tool_calls') {
+                if (!toolCardsContainer) {
+                  toolCardsContainer = document.createElement('div');
+                  toolCardsContainer.className = 'tool-cards';
+                  assistantEl.querySelector('.content')?.before(toolCardsContainer);
+                }
+                const calls = data.tool_calls || [];
+                for (const tc of calls) {
+                  const name = tc.function?.name || 'unknown';
+                  const args = tc.function?.arguments || '{}';
+                  currentToolCards[tc.id || name] = { name, args, result: '', status: 'running', el: null };
+                }
+                showToolCards(currentToolCards, toolCardsContainer);
+              } else if (eventType === 'tool_result') {
+                if (currentToolCards[data.name || '']) {
+                  currentToolCards[data.name || ''].result = (data.result || '').slice(0, 2000);
+                  currentToolCards[data.name || ''].status = 'done';
+                  showToolCards(currentToolCards, toolCardsContainer);
+                } else {
+                  for (const key of Object.keys(currentToolCards)) {
+                    if (currentToolCards[key].name === data.name) {
+                      currentToolCards[key].result = (data.result || '').slice(0, 2000);
+                      currentToolCards[key].status = 'done';
+                      break;
+                    }
+                  }
+                  showToolCards(currentToolCards, toolCardsContainer);
+                }
+              } else if (eventType === 'usage') {
+                showUsage(data.usage || data);
+              } else if (eventType === 'done') {
+                fullContent = data.content || fullContent;
+                updateMessage(assistantEl, fullContent, true);
+              } else if (eventType === 'error') {
+                updateMessage(assistantEl, `Error: ${data.content}`, true);
+              }
+            } catch (e) { /* skip parse errors */ }
+          }
+        }
+      }
+    }
+    if (fullContent) updateMessage(assistantEl, fullContent, true);
+    await loadConversations();
+  } catch (err) {
+    if (err.name !== 'AbortError') updateMessage(assistantEl, `Error: ${err.message}`, true);
+  }
+  setLoading(false);
+  abortController = null;
+  scrollToBottom();
+}
+
+function openSettings() {
+  document.getElementById('modelSelect').value = state.model;
+  document.getElementById('temperatureInput').value = state.temperature;
+  document.getElementById('maxTokensInput').value = state.maxTokens;
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+async function saveSettings() {
+  const model = document.getElementById('modelSelect').value;
+  await api('/api/config/model', { method: 'POST', body: JSON.stringify({ model }) });
+  state.model = model;
+  document.getElementById('modelDisplay').textContent = model;
+  closeSettings();
+  showToast(`Model changed to ${model}`);
+}
+
+async function loadConfig() {
+  const cfg = await api('/api/config');
+  state.model = cfg.model;
+  state.temperature = cfg.temperature;
+  state.maxTokens = cfg.max_tokens;
+  document.getElementById('modelDisplay').textContent = cfg.model;
+}
+
+async function initApp() {
+  await loadConfig();
+  await loadConversations();
+  const hasReal = state.conversations.some(c => c.name !== 'default' && c.messages > 0);
+  if (!hasReal) {
+    document.getElementById('messages').innerHTML = '';
+    showChat(false);
+  }
+}
+
+// Init
+(async function() {
+  const authed = await checkAuth();
+  if (authed) { showApp(); await initApp(); }
+})();
+</script>
+</body>
+</html>
