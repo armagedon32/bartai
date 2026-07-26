@@ -19,9 +19,47 @@ class Agent:
         self.scheduler = TaskScheduler(str(config.tasks_file), self)
 
     def _build_messages(self):
+        history = self.conversations.get_history()
+        # Summarize old messages if conversation is too long
+        if len(history) > 20:
+            keep = history[-10:]
+            to_summarize = history[:-10]
+            summary = self._summarize_conversation(to_summarize)
+            messages = [{"role": "system", "content": self.config.system_prompt}]
+            if summary:
+                messages.append({"role": "system", "content": f"[Previous conversation summary]: {summary}"})
+            messages.extend(keep)
+            return messages
         messages = [{"role": "system", "content": self.config.system_prompt}]
-        messages.extend(self.conversations.get_history())
+        messages.extend(history)
         return messages
+
+    def _summarize_conversation(self, history: list[dict]) -> str:
+        if not history:
+            return ""
+        text = ""
+        for m in history:
+            role = m["role"]
+            content = m.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(p.get("text", "") for p in content if p.get("type") == "text")
+            if isinstance(content, str) and content.strip():
+                text += f"{role}: {content[:500]}\n"
+        if not text.strip():
+            return ""
+        try:
+            resp = self.llm.client.chat.completions.create(
+                model=self.llm._model_for_provider(),
+                messages=[
+                    {"role": "system", "content": "Summarize the key points of this conversation concisely in 2-3 sentences. Focus on what was discussed and any conclusions reached."},
+                    {"role": "user", "content": text[:4000]},
+                ],
+                max_tokens=300,
+                temperature=0.3,
+            )
+            return resp.choices[0].message.content or ""
+        except Exception:
+            return ""
 
     def _make_content(self, text: str, images: list[str] | None = None, files: list[dict] | None = None):
         text_parts = [text] if text else []

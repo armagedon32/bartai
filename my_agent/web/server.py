@@ -258,7 +258,7 @@ async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_cu
 
 @app.get("/api/config")
 async def get_config(user: dict = Depends(get_current_user)):
-    return {"model": config.model, "temperature": config.temperature, "max_tokens": config.max_tokens}
+    return {"model": config.model, "temperature": config.temperature, "max_tokens": config.max_tokens, "provider": config.provider}
 
 
 @app.post("/api/config/model")
