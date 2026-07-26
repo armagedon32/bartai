@@ -122,11 +122,24 @@ async def event_stream(message: str, user_id: int, images: list[str] | None = No
         async for event in ua.chat_stream_async(message, images=images, files=files):
             yield f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
             if event["type"] == "done":
+                _auto_rename(ua, message)
                 break
             if event["type"] == "error":
                 break
     except Exception as e:
         yield f"event: error\ndata: {json.dumps({'content': str(e)})}\n\n"
+
+
+def _auto_rename(ua, message: str):
+    name = ua.conversations.current
+    if not name.startswith("chat_"):
+        return
+    title = message.strip()[:40].rstrip(".,;:!? ")
+    if not title:
+        return
+    new_name = "".join(c if c.isalnum() or c in " -" else "_" for c in title).strip()[:50].rstrip("_")
+    if new_name:
+        ua.conversations.rename(name, new_name)
 
 
 @app.get("/")

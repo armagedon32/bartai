@@ -642,8 +642,9 @@ function renderSidebar() {
     const name = c.name || 'untitled';
     const count = c.messages || 0;
     const active = c.current ? 'active' : '';
+    const display = name.startsWith('chat_') ? name : name.replace(/_/g, ' ');
     return `<div class="conv-item ${active}" onclick="switchConversation('${name}')">
-      <span class="conv-name">${name} <span style="color:var(--text2);font-size:11px">(${count})</span></span>
+      <span class="conv-name">${escHtml(display)} <span style="color:var(--text2);font-size:11px">(${count})</span></span>
       <span class="conv-del" onclick="event.stopPropagation();deleteConversation('${name}')">×</span>
     </div>`;
   }).join('');
@@ -717,7 +718,7 @@ async function loadMessages() {
   const el = document.getElementById('messages');
   el.innerHTML = '';
   const data = await api(`/api/conversations/${encodeURIComponent(state.current)}/messages`);
-  if (!data.messages || data.messages.length === 0) { showChat(false); return; }
+  if (!data.messages || data.messages.length === 0) { showChat(true); return; }
   showChat(true);
   for (const m of data.messages) {
     if (m.role === 'system') continue;
