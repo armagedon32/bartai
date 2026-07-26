@@ -486,7 +486,7 @@ async function loginUser() {
   try {
     const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
     const data = await r.json();
-    if (!data.success) { errEl.textContent = data.error; errEl.style.display = ''; btn.disabled = false; btn.textContent = 'Sign In'; return; }
+    if (!data.success) { errEl.textContent = data.error; errEl.style.display = ''; showToast(data.error, 'error'); btn.disabled = false; btn.textContent = 'Sign In'; return; }
     setToken(data.token);
     state.user = data.user;
     document.getElementById('userDisplay').textContent = data.user.email;
