@@ -165,10 +165,13 @@ class Agent:
                 continue
 
             conv.add_message({"role": "assistant", "content": content_text})
-            self.memory_index.add_text(
-                f"User: {user_input}\nAssistant: {content_text[:500]}",
-                {"conversation": conv.current, "date": datetime.now().isoformat()},
-            )
+            try:
+                self.memory_index.add_text(
+                    f"User: {user_input}\nAssistant: {content_text[:500]}",
+                    {"conversation": conv.current, "date": datetime.now().isoformat()},
+                )
+            except Exception:
+                pass
             yield {"type": "done", "content": content_text}
             return
 

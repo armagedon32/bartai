@@ -93,9 +93,14 @@ class LLMClient:
             ]
         return result
 
+    def _embedding_model_for_provider(self):
+        if self.provider == "groq":
+            return "nomic-embed-text-v1.5"
+        return self.embedding_model
+
     def embed(self, text: str) -> list[float]:
         resp = self.client.embeddings.create(
-            model=self.embedding_model,
+            model=self._embedding_model_for_provider(),
             input=text,
         )
         return resp.data[0].embedding
