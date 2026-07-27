@@ -244,6 +244,9 @@ def _is_account_expired(activated_at) -> bool:
         return True
     if isinstance(activated_at, datetime):
         act = activated_at
+        # Make naive if timezone-aware (PostgreSQL returns aware datetimes)
+        if act.tzinfo is not None:
+            act = act.replace(tzinfo=None)
     else:
         try:
             act = datetime.fromisoformat(activated_at)
