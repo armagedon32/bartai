@@ -13,7 +13,7 @@ class Config:
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
         self.provider = os.getenv("AGENT_PROVIDER", "openrouter")  # openrouter or groq
-        self.model = os.getenv("AGENT_MODEL", "openai/gpt-4o-mini")
+        self.model = os.getenv("AGENT_MODEL", "openai/gpt-4o")
         self.embedding_model = os.getenv("AGENT_EMBEDDING_MODEL", "text-embedding-3-small")
         self.max_turns = int(os.getenv("AGENT_MAX_TURNS", "30"))
         self.max_tool_retries = int(os.getenv("AGENT_MAX_TOOL_RETRIES", "5"))
