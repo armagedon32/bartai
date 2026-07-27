@@ -54,13 +54,11 @@ def _exec(conn, sql, params=None):
     if _is_pg():
         with conn.cursor() as cur:
             cur.execute(sql, params or ())
-            if cur.description:
-                return cur.fetchall()
-            return None
     else:
         if params:
-            return conn.execute(sql, params)
-        return conn.execute(sql)
+            conn.execute(sql, params)
+        else:
+            conn.execute(sql)
 
 
 def _exec_script(conn, script):
@@ -73,7 +71,8 @@ def _exec_script(conn, script):
 
 def _fetchone(conn, sql, params=None):
     if _is_pg():
-        with conn.cursor() as cur:
+        from psycopg2.extras import RealDictCursor
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(sql, params or ())
             return cur.fetchone()
     else:
@@ -83,7 +82,8 @@ def _fetchone(conn, sql, params=None):
 
 def _fetchall(conn, sql, params=None):
     if _is_pg():
-        with conn.cursor() as cur:
+        from psycopg2.extras import RealDictCursor
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(sql, params or ())
             return cur.fetchall()
     else:
