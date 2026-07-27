@@ -93,6 +93,9 @@ class Agent:
             content.append({"type": "text", "text": "Analyze the attached files."})
         return content
 
+    def _max_tools(self) -> int | None:
+        return 8 if self.llm.provider == "groq" else None
+
     async def chat_stream_async(self, user_input: str, images: list[str] | None = None, files: list[dict] | None = None):
         content = self._make_content(user_input, images, files)
         msg = {"role": "user", "content": content}
@@ -105,7 +108,7 @@ class Agent:
 
         for turn in range(self.config.max_turns):
             messages = self._build_messages()
-            stream = await self.llm.chat_stream_async(messages, tools=self.tools.list_schemas())
+            stream = await self.llm.chat_stream_async(messages, tools=self.tools.list_schemas(self._max_tools()))
 
             content_text = ""
             tool_calls = {}

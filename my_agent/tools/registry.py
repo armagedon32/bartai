@@ -20,8 +20,8 @@ class ToolRegistry:
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
-    def list_schemas(self) -> list[dict]:
-        return [
+    def list_schemas(self, max_tools: int | None = None) -> list[dict]:
+        tools = [
             {
                 "type": "function",
                 "function": {
@@ -32,6 +32,9 @@ class ToolRegistry:
             }
             for t in self._tools.values()
         ]
+        if max_tools is not None:
+            return tools[:max_tools]
+        return tools
 
     def execute(self, name: str, arguments: dict[str, Any]) -> str:
         tool = self.get(name)
