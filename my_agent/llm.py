@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Any, AsyncGenerator
 from openai import OpenAI, AsyncOpenAI
 
@@ -10,9 +11,12 @@ class LLMClient:
         self.temperature = config.temperature
         self.max_tokens = config.max_tokens
 
-        # Auto-fallback chain: gemini -> groq -> openrouter
+        # Auto-fallback chain: ollama -> gemini -> groq -> openrouter
         self.provider = config.provider
-        if self.provider == "gemini" and not config.gemini_api_key:
+        if self.provider == "ollama":
+            base_url = config.ollama_base_url
+            api_key = ""  # Ollama doesn't need API key
+        elif self.provider == "gemini" and not config.gemini_api_key:
             self.provider = "groq" if config.groq_api_key else "openrouter"
         elif self.provider == "groq" and not config.groq_api_key:
             self.provider = "openrouter"
@@ -23,14 +27,19 @@ class LLMClient:
         elif self.provider == "groq":
             base_url = config.groq_base_url
             api_key = config.groq_api_key
-        else:
+        elif self.provider == "openrouter":
             base_url = config.openrouter_base_url
             api_key = config.openrouter_api_key
+        else:
+            base_url = config.ollama_base_url
+            api_key = ""
 
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.async_client = AsyncOpenAI(base_url=base_url, api_key=api_key)
 
     def _model_for_provider(self):
+        if self.provider == "ollama":
+            return os.getenv("OLLAMA_MODEL", "llama3.2:1b")
         if self.provider == "gemini":
             return self.model.replace("openai/", "").replace("google/", "")
         if self.provider == "groq":

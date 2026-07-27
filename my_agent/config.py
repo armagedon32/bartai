@@ -14,7 +14,8 @@ class Config:
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
         self.gemini_base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
-        self.provider = os.getenv("AGENT_PROVIDER", "gemini")  # gemini, groq, or openrouter
+        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        self.provider = os.getenv("AGENT_PROVIDER", "ollama")  # ollama, gemini, groq, or openrouter
         self.model = os.getenv("AGENT_MODEL", "gemini-2.0-flash")
         self.embedding_model = os.getenv("AGENT_EMBEDDING_MODEL", "text-embedding-3-small")
         self.max_turns = int(os.getenv("AGENT_MAX_TURNS", "30"))
