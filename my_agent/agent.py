@@ -21,8 +21,8 @@ class Agent:
     def _build_messages(self):
         history = self.conversations.get_history()
         # Summarize old messages if conversation is too long
-        if len(history) > 15:
-            keep = history[-8:]
+        if len(history) > 6:
+            keep = history[-4:]
             to_summarize = history[:-8]
             summary = self._summarize_conversation(to_summarize)
             messages = [{"role": "system", "content": self.config.system_prompt}]
@@ -32,17 +32,16 @@ class Agent:
             return messages
         messages = [{"role": "system", "content": self.config.system_prompt}]
         messages.extend(history)
-        # Truncate message content to avoid rate limits on free tier
+        # Truncate message content to avoid rate limits on free tier (Groq: 6000 TPM)
         total_chars = sum(len(m.get("content", "")) if isinstance(m.get("content"), str) else 0 for m in messages)
-        if total_chars > 8000:
-            # Keep system prompt + last 2 messages, summarize rest
-            if len(history) > 4:
-                keep = history[-4:]
-                to_summarize = history[:-4]
+        if total_chars > 3000:
+            if len(history) > 2:
+                keep = history[-2:]
+                to_summarize = history[:-2]
                 summary = self._summarize_conversation(to_summarize)
                 messages = [{"role": "system", "content": self.config.system_prompt}]
                 if summary:
-                    messages.append({"role": "system", "content": f"[Previous conversation summary]: {summary}"})
+                    messages.append({"role": "system", "content": f"[Summary]: {summary}"})
                 messages.extend(keep)
         return messages
 
