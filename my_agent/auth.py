@@ -2,6 +2,7 @@ import sqlite3
 import hashlib
 import secrets
 import os
+import time
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -26,11 +27,19 @@ def _get_db():
         conn = psycopg2.connect(_DATABASE_URL)
         conn.autocommit = False
         return conn
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    for attempt in range(3):
+        try:
+            conn = sqlite3.connect(str(DB_PATH), timeout=10)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+            return conn
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e) and attempt < 2:
+                time.sleep(1)
+                continue
+            raise
+    return None  # unreachable
 
 
 def _P():
