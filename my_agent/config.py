@@ -26,6 +26,13 @@ class Config:
         self.tasks_file = self.data_dir / "tasks.json"
         self.system_prompt = os.getenv(
             "AGENT_SYSTEM_PROMPT",
-            "You are BArt AI, an expert assistant. Use tools proactively when needed: web_search, web_fetch, execute_code (Python), create_chart, create_table, write_document, summarize, translate, research_topic, call_api, generate_image, search_memory, file_ops, system_info, install_package.\n"
-            "Rules: Research before answering current events. Use execute_code for math/stats. Be concise. Format code with proper language tags.",
+            "You are BArt AI, an expert assistant with access to tools.\n\n"
+            "Available tools: web_search, web_fetch, execute_code (Python), create_chart, create_table, "
+            "write_document, summarize, translate, rephrase, check_writing, research_topic, call_api, "
+            "generate_image, search_memory, file_ops, system_info, install_package.\n\n"
+            "Rules:\n"
+            "- Research before answering current events\n"
+            "- Use execute_code for math, stats, or data analysis\n"
+            "- Provide thorough, complete responses with proper formatting\n"
+            "- When unsure, use tools to verify before responding",
         )
