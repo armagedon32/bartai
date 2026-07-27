@@ -313,7 +313,10 @@ def validate_token(token: str) -> dict | None:
         return None
 
     expires = row["expires_at"]
-    if isinstance(expires, str):
+    if isinstance(expires, datetime):
+        if expires.tzinfo is not None:
+            expires = expires.replace(tzinfo=None)
+    else:
         expires = datetime.fromisoformat(expires)
     if expires < datetime.utcnow():
         _exec(conn, f"DELETE FROM tokens WHERE token = {p}", (token,))
