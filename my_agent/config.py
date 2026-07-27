@@ -12,8 +12,10 @@ class Config:
         )
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-        self.provider = os.getenv("AGENT_PROVIDER", "groq")  # openrouter or groq
-        self.model = os.getenv("AGENT_MODEL", "openai/gpt-4o-mini")
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
+        self.gemini_base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
+        self.provider = os.getenv("AGENT_PROVIDER", "gemini")  # gemini, groq, or openrouter
+        self.model = os.getenv("AGENT_MODEL", "gemini-2.0-flash")
         self.embedding_model = os.getenv("AGENT_EMBEDDING_MODEL", "text-embedding-3-small")
         self.max_turns = int(os.getenv("AGENT_MAX_TURNS", "30"))
         self.max_tool_retries = int(os.getenv("AGENT_MAX_TOOL_RETRIES", "5"))

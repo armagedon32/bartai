@@ -10,13 +10,17 @@ class LLMClient:
         self.temperature = config.temperature
         self.max_tokens = config.max_tokens
 
-        # Auto-fallback kung walang Groq key
-        if config.provider == "groq" and not config.groq_api_key:
+        # Auto-fallback chain: gemini -> groq -> openrouter
+        self.provider = config.provider
+        if self.provider == "gemini" and not config.gemini_api_key:
+            self.provider = "groq" if config.groq_api_key else "openrouter"
+        elif self.provider == "groq" and not config.groq_api_key:
             self.provider = "openrouter"
-        else:
-            self.provider = config.provider
 
-        if self.provider == "groq":
+        if self.provider == "gemini":
+            base_url = config.gemini_base_url
+            api_key = config.gemini_api_key
+        elif self.provider == "groq":
             base_url = config.groq_base_url
             api_key = config.groq_api_key
         else:
@@ -27,6 +31,8 @@ class LLMClient:
         self.async_client = AsyncOpenAI(base_url=base_url, api_key=api_key)
 
     def _model_for_provider(self):
+        if self.provider == "gemini":
+            return self.model.replace("openai/", "").replace("google/", "")
         if self.provider == "groq":
             model_map = {
                 "openai/gpt-4o-mini": "llama-3.1-8b-instant",
@@ -48,8 +54,9 @@ class LLMClient:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             stream=True,
-            stream_options={"include_usage": True},
         )
+        if self.provider == "openrouter":
+            kwargs["stream_options"] = {"include_usage": True}
         if tools:
             kwargs["tools"] = tools
         return self.client.chat.completions.create(**kwargs)
@@ -61,8 +68,9 @@ class LLMClient:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             stream=True,
-            stream_options={"include_usage": True},
         )
+        if self.provider == "openrouter":
+            kwargs["stream_options"] = {"include_usage": True}
         if tools:
             kwargs["tools"] = tools
         return await self.async_client.chat.completions.create(**kwargs)
@@ -96,6 +104,8 @@ class LLMClient:
     def _embedding_model_for_provider(self):
         if self.provider == "groq":
             return "nomic-embed-text-v1.5"
+        if self.provider == "gemini":
+            return "text-embedding-004"
         return self.embedding_model
 
     def embed(self, text: str) -> list[float]:
